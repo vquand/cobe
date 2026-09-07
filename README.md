@@ -27,7 +27,7 @@
 import createGlobe from 'cobe'
 
 let phi = 0
-let canvas = document.getElementById("cobe")
+const canvas = document.getElementById('cobe')
 
 const globe = createGlobe(canvas, {
   devicePixelRatio: 2,
@@ -59,16 +59,19 @@ const globe = createGlobe(canvas, {
   arcWidth: 0.5,
   arcHeight: 0.3,
   markerElevation: 0.02,
-  onRender: (state) => {
-    // Called on every animation frame.
-    // `state` will be an empty object, return updated params.
-    state.phi = phi
-    phi += 0.01
-  },
 })
 
-// To destroy the instance and bindings:
-// `globe.destroy()`
+let animationFrame
+function animate() {
+  phi += 0.01
+  globe.update({ phi })
+  animationFrame = requestAnimationFrame(animate)
+}
+animate()
+
+// When the globe is no longer needed:
+// cancelAnimationFrame(animationFrame)
+// globe.destroy()
 ```
 
 ## Arcs
@@ -81,8 +84,41 @@ arcs: [
     from: [37.7595, -122.4367],
     to: [35.6762, 139.6503],
     color: [1, 0.5, 0.5], // optional, uses arcColor if not set
+    height: 0.3,           // optional, uses arcHeight if not set
+    width: 0.5,            // optional, uses arcWidth if not set
+    progress: 1,           // optional visible portion, clamped to 0..1
+    anchorProgress: 0.5,   // optional DOM anchor position, clamped to 0..1
   },
 ]
+```
+
+Each array entry is rendered independently. A route with multiple legs should
+be passed as multiple arcs sharing endpoints. Per-arc `height`, `width`, and
+`color` can distinguish the legs without putting application-specific route
+semantics into COBE.
+
+To reveal an arc and move its bindable DOM element along the same curve, update
+`progress` and `anchorProgress` together:
+
+```js
+const activeArc = {
+  id: 'active-leg',
+  from: [37.7595, -122.4367],
+  to: [35.6762, 139.6503],
+  height: 0.3,
+  progress: 0,
+  anchorProgress: 0,
+}
+
+function renderProgress(progress) {
+  globe.update({
+    arcs: [{
+      ...activeArc,
+      progress,
+      anchorProgress: progress,
+    }],
+  })
+}
 ```
 
 ## Bindable Markers & Arcs
@@ -104,6 +140,7 @@ arcs: [
   position-anchor: --cobe-sf;
   bottom: anchor(top);
   left: anchor(center);
+  translate: -50% 0;
   opacity: var(--cobe-visible-sf, 0);
   filter: blur(calc((1 - var(--cobe-visible-sf, 0)) * 8px));
   transition: opacity 0.3s, filter 0.3s;
@@ -114,15 +151,34 @@ arcs: [
   position-anchor: --cobe-arc-sf-tokyo;
   bottom: anchor(top);
   left: anchor(center);
+  translate: -50% 0;
   opacity: var(--cobe-visible-arc-sf-tokyo, 0);
+}
+
+/* Fallback for browsers without CSS Anchor Positioning. */
+@supports not (anchor-name: --x) {
+  .marker-label {
+    left: var(--cobe-sf-x);
+    bottom: calc(100% - var(--cobe-sf-y));
+  }
+
+  .arc-label {
+    left: var(--cobe-arc-sf-tokyo-x);
+    bottom: calc(100% - var(--cobe-arc-sf-tokyo-y));
+  }
 }
 ```
 
 The globe exposes:
 - `--cobe-{id}` / `--cobe-arc-{id}` — CSS anchor names for positioning
+- `--cobe-{id}-x` / `--cobe-{id}-y` — marker position percentages on the canvas parent
+- `--cobe-arc-{id}-x` / `--cobe-arc-{id}-y` — arc anchor position percentages on the canvas parent
 - `--cobe-visible-{id}` / `--cobe-visible-arc-{id}` — visibility variable (0 when behind globe, 1 when visible)
 
-Use the visibility variable to drive opacity, blur, scale, or any CSS property for smooth transitions.
+Overlay elements using the X/Y fallback variables must be descendants of the
+canvas parent so the scoped variables inherit correctly. Use the visibility
+variable to drive opacity, blur, scale, or any CSS property for smooth
+transitions.
 
 ## Acknowledgment
 

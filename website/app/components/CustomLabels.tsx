@@ -98,7 +98,7 @@ createGlobe(canvas, {
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }`,
     description:
-      "Arc anchors use `--cobe-arc-{id}` prefix. The anchor is positioned at the arc's highest point (peak), ideal for flight paths.",
+      "Arc anchors use the `--cobe-arc-{id}` prefix. They default to the midpoint and can be moved anywhere along the curve with `anchorProgress`.",
   },
   {
     key: 'advanced transitions',

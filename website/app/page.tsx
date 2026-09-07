@@ -149,7 +149,7 @@ const apiOptions = [
   {
     name: 'arcs',
     type: 'Arc[]',
-    desc: '{ from: [lat, lon], to: [lat, lon], color?, id? }',
+    desc: '{ from, to, color?, id?, height?, width?, progress?, anchorProgress? }',
   },
   { name: 'arcColor', type: '[r,g,b]', desc: 'Default arc color, values 0-1' },
   { name: 'arcWidth', type: 'number', desc: 'Arc line thickness (0.1 to 2)' },
