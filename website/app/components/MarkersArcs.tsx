@@ -43,6 +43,29 @@ arcHeight: 0.3            // Curve height above surface`,
     description:
       'Draw independent curved legs between locations. Per-arc style values override the global defaults; progress reveals the curve and anchorProgress positions attached DOM content.',
   },
+  {
+    key: 'split-routes',
+    name: 'Split Routes',
+    code: `const transferPoints = [
+  { id: 'flight-boat', location: [22.32, 114.17] },
+  { id: 'boat-road', location: [-6.21, 106.85] }
+]
+
+createGlobe(canvas, {
+  arcs: [flightLeg, boatLeg, roadLeg],
+  markers: transferPoints.map(({ id, location }) => ({
+    id: \`transfer-\${id}\`,
+    location,
+    size: 0.02
+  }))
+})
+
+// Render your own DOM button for each transfer point:
+// position-anchor: --cobe-transfer-flight-boat
+// opacity: var(--cobe-visible-transfer-flight-boat, 0)`,
+    description:
+      'Mark each shared leg endpoint explicitly to show A — ● — ● — B. COBE projects the marker anchors; your application owns transfer labels, actions, and route semantics.',
+  },
 ]
 
 export function MarkersArcs() {

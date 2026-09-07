@@ -28,6 +28,19 @@
         font-size: 34px;
         pointer-events: none;
       }
+      .transfer-button {
+        position: absolute;
+        z-index: 3;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        translate: -50% -50%;
+        border: 4px solid #07111f;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.55);
+        cursor: pointer;
+      }
       #item-a {
         position-anchor: --cobe-item-a;
         left: anchor(center);
@@ -46,6 +59,18 @@
         top: anchor(center);
         opacity: var(--cobe-visible-arc-boat-leg, 0);
       }
+      #transfer-flight-boat {
+        position-anchor: --cobe-transfer-flight-boat;
+        left: anchor(center);
+        top: anchor(center);
+        opacity: var(--cobe-visible-transfer-flight-boat, 0);
+      }
+      #transfer-boat-road {
+        position-anchor: --cobe-transfer-boat-road;
+        left: anchor(center);
+        top: anchor(center);
+        opacity: var(--cobe-visible-transfer-boat-road, 0);
+      }
       @supports not (anchor-name: --x) {
         #item-a {
           left: var(--cobe-item-a-x);
@@ -59,6 +84,14 @@
           left: var(--cobe-arc-boat-leg-x);
           top: var(--cobe-arc-boat-leg-y);
         }
+        #transfer-flight-boat {
+          left: var(--cobe-transfer-flight-boat-x);
+          top: var(--cobe-transfer-flight-boat-y);
+        }
+        #transfer-boat-road {
+          left: var(--cobe-transfer-boat-road-x);
+          top: var(--cobe-transfer-boat-road-y);
+        }
       }
     </style>
   </head>
@@ -68,6 +101,18 @@
       <span id="item-a" class="overlay" aria-label="Journey item A">🗼</span>
       <span id="item-b" class="overlay" aria-label="Journey item B">🐨</span>
       <span id="traveler" class="overlay" aria-label="Active boat leg">⛵</span>
+      <button
+        id="transfer-flight-boat"
+        class="transfer-button"
+        type="button"
+        aria-label="Open first transfer"
+      ></button>
+      <button
+        id="transfer-boat-road"
+        class="transfer-button"
+        type="button"
+        aria-label="Open second transfer"
+      ></button>
     </main>
     <script type="module">
       import createGlobe from '../../dist/index.esm.js'
@@ -101,6 +146,11 @@
         },
       ]
 
+      const transferPoints = [
+        { id: 'transfer-flight-boat', location: [22.32, 114.17] },
+        { id: 'transfer-boat-road', location: [-6.21, 106.85] },
+      ]
+
       const canvas = document.querySelector('#globe')
       const width = canvas.clientWidth
       const globe = createGlobe(canvas, {
@@ -121,6 +171,12 @@
         markers: [
           { id: 'item-a', location: [35.68, 139.65], size: 0.035 },
           { id: 'item-b', location: [-33.87, 151.21], size: 0.035 },
+          ...transferPoints.map(({ id, location }) => ({
+            id,
+            location,
+            size: 0.018,
+            color: [1, 1, 1],
+          })),
         ],
         arcs,
         arcColor: [1, 1, 1],
@@ -128,7 +184,7 @@
         arcHeight: 0.2,
       })
 
-      window.cobeSmoke = { arcs, globe, ready: true }
+      window.cobeSmoke = { arcs, transferPoints, globe, ready: true }
     </script>
   </body>
 </html>

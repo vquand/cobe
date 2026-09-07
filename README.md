@@ -97,6 +97,33 @@ be passed as multiple arcs sharing endpoints. Per-arc `height`, `width`, and
 `color` can distinguish the legs without putting application-specific route
 semantics into COBE.
 
+Make shared leg endpoints explicit by passing them as markers with IDs. The
+application can then render real DOM buttons on those marker anchors, producing
+a clear `A — ● — ● — B` route:
+
+```js
+const transferPoints = [
+  { id: 'flight-boat', location: [22.32, 114.17] },
+  { id: 'boat-road', location: [-6.21, 106.85] },
+]
+
+const globe = createGlobe(canvas, {
+  // The application decides where and why the route is split.
+  arcs: [flightLeg, boatLeg, roadLeg],
+  markers: transferPoints.map(({ id, location }) => ({
+    id: `transfer-${id}`,
+    location,
+    size: 0.02,
+  })),
+  // ...other options
+})
+```
+
+Use `--cobe-transfer-{id}` to anchor each button and
+`--cobe-visible-transfer-{id}` for its visibility. COBE supplies the projected
+position; the application owns the button's content, title, click behavior, and
+route meaning. COBE does not infer transfers from adjacent arcs.
+
 To reveal an arc and move its bindable DOM element along the same curve, update
 `progress` and `anchorProgress` together:
 
