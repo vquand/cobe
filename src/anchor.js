@@ -10,10 +10,30 @@ export function createAnchorManager(wrapper) {
   const markerAnchors = {}
   const arcAnchors = {}
   const visibilityVars = {}
+  const host = wrapper.parentElement || wrapper
 
   // Create a style tag for :root CSS variables
   const styleEl = document.createElement('style')
   document.head.append(styleEl)
+
+  function setPosition(name, position) {
+    host.style.setProperty(name + '-x', position.x * 100 + '%')
+    host.style.setProperty(name + '-y', position.y * 100 + '%')
+  }
+
+  function removePosition(name) {
+    host.style.removeProperty(name + '-x')
+    host.style.removeProperty(name + '-y')
+  }
+
+  function removeAnchor(anchors, key, variableName) {
+    if (anchors[key]) {
+      anchors[key].remove()
+      delete anchors[key]
+    }
+    delete visibilityVars['--cobe-visible-' + variableName]
+    removePosition('--cobe-' + variableName)
+  }
 
   function updateStyleTag() {
     let vars = ''
@@ -57,7 +77,13 @@ export function createAnchorManager(wrapper) {
 
       activeKeys[key] = 1
 
+      if (!pos) {
+        removeAnchor(markerAnchors, key, key)
+        continue
+      }
+
       updateAnchor(markerAnchors, key, `--cobe-${key}`, pos)
+      setPosition('--cobe-' + key, pos)
 
       if (pos.visible) {
         visibilityVars['--cobe-visible-' + key] = 'N'
@@ -68,9 +94,7 @@ export function createAnchorManager(wrapper) {
 
     for (const key in markerAnchors) {
       if (!activeKeys[key]) {
-        markerAnchors[key].remove()
-        delete markerAnchors[key]
-        delete visibilityVars['--cobe-visible-' + key]
+        removeAnchor(markerAnchors, key, key)
       }
     }
   }
@@ -86,7 +110,15 @@ export function createAnchorManager(wrapper) {
 
       activeKeys[key] = 1
 
+      const variableName = 'arc-' + key
+
+      if (!pos) {
+        removeAnchor(arcAnchors, key, variableName)
+        continue
+      }
+
       updateAnchor(arcAnchors, key, `--cobe-arc-${key}`, pos)
+      setPosition('--cobe-' + variableName, pos)
 
       if (pos.visible) {
         visibilityVars['--cobe-visible-arc-' + key] = 'N'
@@ -97,19 +129,17 @@ export function createAnchorManager(wrapper) {
 
     for (const key in arcAnchors) {
       if (!activeKeys[key]) {
-        arcAnchors[key].remove()
-        delete arcAnchors[key]
-        delete visibilityVars['--cobe-visible-arc-' + key]
+        removeAnchor(arcAnchors, key, 'arc-' + key)
       }
     }
   }
 
   function r() {
     for (const key in markerAnchors) {
-      markerAnchors[key].remove()
+      removeAnchor(markerAnchors, key, key)
     }
     for (const key in arcAnchors) {
-      arcAnchors[key].remove()
+      removeAnchor(arcAnchors, key, 'arc-' + key)
     }
     styleEl.remove()
   }
