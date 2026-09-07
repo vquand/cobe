@@ -121,4 +121,5 @@ esbuild
     })
     // Just overwrite the file
     fs.writeFileSync('dist/index.esm.js', result.code)
+    fs.copyFileSync('src/index.d.ts', 'dist/index.d.ts')
   })

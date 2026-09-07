@@ -10,6 +10,14 @@ export interface Arc {
   to: [number, number]
   color?: [number, number, number]
   id?: string
+  /** Curve height above the globe. Overrides the global arcHeight. */
+  height?: number
+  /** Line width. Overrides the global arcWidth. */
+  width?: number
+  /** Visible portion of the arc, clamped to 0..1. Defaults to 1. */
+  progress?: number
+  /** Position of the bindable DOM anchor along the arc. Defaults to 0.5. */
+  anchorProgress?: number
 }
 
 export interface COBEOptions {

@@ -4,8 +4,13 @@ import {
   getAttribLocations,
 } from './webgl.js'
 import { createAnchorManager } from './anchor.js'
-
-const { PI, sin, cos } = Math
+import {
+  createArcInstanceData,
+  GLOBE_RADIUS,
+  latLonTo3D,
+  pointOnArc,
+  resolveArcOptions,
+} from './geometry.js'
 
 // Shader sources will be injected by build
 const GLOBE_VERT = __GLOBE_VERT__
@@ -14,21 +19,6 @@ const MARKER_VERT = __MARKER_VERT__
 const MARKER_FRAG = __MARKER_FRAG__
 const ARC_VERT = __ARC_VERT__
 const ARC_FRAG = __ARC_FRAG__
-
-const GLOBE_R = 0.8
-
-/**
- * Convert lat/lon to 3D position on unit sphere
- * @param {[number, number]} location - [latitude, longitude] in degrees
- * @returns {[number, number, number]} - [x, y, z]
- */
-function latLonTo3D([lat, lon]) {
-  const latRad = (lat * PI) / 180
-  const lonRad = (lon * PI) / 180 - PI
-  const cosLat = cos(latRad)
-  return [-cosLat * cos(lonRad), sin(latRad), cosLat * sin(lonRad)]
-}
-
 
 /**
  * Create COBE globe
@@ -166,6 +156,7 @@ export default (canvas, opts) => {
     ARC_aArcWidth,
     ARC_aArcColor,
     ARC_aHasColor,
+    ARC_aArcProgress,
   ])
 
   // Globe attribute
@@ -237,26 +228,14 @@ export default (canvas, opts) => {
   // Track valid arc count (arcs with resolved endpoints)
   let validArcCount = 0
 
+  function getArcDefaults() {
+    return { arcHeight, arcWidth, markerElevation }
+  }
+
   function updateArcs(newArcs) {
     arcs = newArcs
     validArcCount = arcs.length
-
-    // 12 floats per arc: from(3), to(3), height, width, color(3), hasColor
-    const arcData = new Float32Array(arcs.length * 12)
-
-    arcs.forEach((arc, i) => {
-      arcData.set(
-        [
-          ...latLonTo3D(arc.from),
-          ...latLonTo3D(arc.to),
-          arcHeight + markerElevation,
-          arcWidth * 0.005,
-          ...(arc.color || [0, 0, 0]),
-          arc.color ? 1 : 0,
-        ],
-        i * 12,
-      )
-    })
+    const arcData = createArcInstanceData(arcs, getArcDefaults())
 
     gl.bindBuffer(gl.ARRAY_BUFFER, arcInstanceBuffer)
     gl.bufferData(gl.ARRAY_BUFFER, arcData, gl.DYNAMIC_DRAW)
@@ -286,7 +265,8 @@ export default (canvas, opts) => {
     return [
       ((rx / aspect) * scaleOpt + offsetOpt[0] * scaleOpt * dpr / canvas.width + 1) / 2,
       (-ry * scaleOpt + offsetOpt[1] * scaleOpt * dpr / canvas.height + 1) / 2,
-      rz >= 0 || rx * rx + ry * ry >= 0.64, // visible if in front OR outside globe silhouette
+      rz >= 0 ||
+        rx * rx + ry * ry >= GLOBE_RADIUS * GLOBE_RADIUS, // visible if in front OR outside globe silhouette
     ]
   }
 
@@ -295,7 +275,7 @@ export default (canvas, opts) => {
    */
   function project(location) {
     const pos3D = latLonTo3D(location)
-    const r = GLOBE_R + markerElevation
+    const r = GLOBE_RADIUS + markerElevation
     const elevatedPos = [pos3D[0] * r, pos3D[1] * r, pos3D[2] * r]
 
     const rotated = applyRotation(elevatedPos)
@@ -303,25 +283,12 @@ export default (canvas, opts) => {
   }
 
   /**
-   * Project arc midpoint to screen coordinates
+   * Project an arc's configured anchor point to screen coordinates
    */
-  function projectArcMidpoint(arc) {
-    const fromDir = latLonTo3D(arc.from)
-    const toDir = latLonTo3D(arc.to)
-
-    const midSum = [
-      fromDir[0] + toDir[0],
-      fromDir[1] + toDir[1],
-      fromDir[2] + toDir[2],
-    ]
-    const len = (midSum[0] ** 2 + midSum[1] ** 2 + midSum[2] ** 2) ** 0.5
-    if (len < 0.001) return null
-
-    // Bezier at t=0.5: 0.25*(from+to) + 0.5*mid, simplified
-    const s =
-      0.25 * (GLOBE_R + markerElevation) +
-      (0.5 * (GLOBE_R + arcHeight + markerElevation)) / len
-    const rotated = applyRotation([midSum[0] * s, midSum[1] * s, midSum[2] * s])
+  function projectArcAnchor(arc) {
+    const defaults = getArcDefaults()
+    const { anchorProgress } = resolveArcOptions(arc, defaults)
+    const rotated = applyRotation(pointOnArc(arc, anchorProgress, defaults))
     return { x: rotated[0], y: rotated[1], visible: rotated[2] }
   }
 
@@ -370,18 +337,15 @@ export default (canvas, opts) => {
    * @param {Object} state - State updates to apply
    */
   function update(state) {
-    // Update state from provided values
+    const arcDefaultsChanged =
+      state.arcWidth != UNDEFINED ||
+      state.arcHeight != UNDEFINED ||
+      state.markerElevation != UNDEFINED
+
+    // Apply scalar options before rebuilding instance buffers so an update can
+    // change an arc and its defaults atomically.
     if (state.phi != UNDEFINED) phi = state.phi
     if (state.theta != UNDEFINED) theta = state.theta
-    if (state.markers) updateMarkers(state.markers)
-    if (state.arcs) updateArcs(state.arcs)
-
-    if (state.width && state.height) {
-      canvas.width = state.width * dpr
-      canvas.height = state.height * dpr
-    }
-
-    // Update appearance options
     if (state.mapSamples != UNDEFINED) mapSamples = state.mapSamples
     if (state.mapBrightness != UNDEFINED) mapBrightness = state.mapBrightness
     if (state.mapBaseBrightness != UNDEFINED)
@@ -400,9 +364,18 @@ export default (canvas, opts) => {
     if (state.markerElevation != UNDEFINED)
       markerElevation = state.markerElevation
 
+    if (state.markers != UNDEFINED) updateMarkers(state.markers)
+    if (state.arcs != UNDEFINED) updateArcs(state.arcs)
+    else if (arcDefaultsChanged && arcs.length > 0) updateArcs(arcs)
+
+    if (state.width && state.height) {
+      canvas.width = state.width * dpr
+      canvas.height = state.height * dpr
+    }
+
     // Update anchor positions
     anchorManager.m(markers, project)
-    anchorManager.a(arcs, projectArcMidpoint)
+    anchorManager.a(arcs, projectArcAnchor)
     anchorManager.s()
 
     // Set viewport
@@ -483,7 +456,7 @@ export default (canvas, opts) => {
 
       // Bind instance buffer
       gl.bindBuffer(gl.ARRAY_BUFFER, arcInstanceBuffer)
-      const arcStride = 12 * 4 // 12 floats * 4 bytes
+      const arcStride = 13 * 4 // 13 floats * 4 bytes
 
       setupInstancedAttribute(arcAttribs[ARC_aArcFrom], 3, arcStride, 0, 1)
       setupInstancedAttribute(arcAttribs[ARC_aArcTo], 3, arcStride, 12, 1)
@@ -491,6 +464,13 @@ export default (canvas, opts) => {
       setupInstancedAttribute(arcAttribs[ARC_aArcWidth], 1, arcStride, 28, 1)
       setupInstancedAttribute(arcAttribs[ARC_aArcColor], 3, arcStride, 32, 1)
       setupInstancedAttribute(arcAttribs[ARC_aHasColor], 1, arcStride, 44, 1)
+      setupInstancedAttribute(
+        arcAttribs[ARC_aArcProgress],
+        1,
+        arcStride,
+        48,
+        1,
+      )
 
       // Set uniforms
       gl.uniform1f(arcUniforms[ARC_phi], phi)

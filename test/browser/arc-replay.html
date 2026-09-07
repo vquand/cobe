@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>COBE arc replay smoke test</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #07111f;
+        color: white;
+        font-family: system-ui, sans-serif;
+      }
+      #globe-host {
+        position: relative;
+        width: min(90vw, 720px);
+        aspect-ratio: 1;
+      }
+      canvas { width: 100%; height: 100%; }
+      .overlay {
+        position: absolute;
+        z-index: 2;
+        translate: -50% -50%;
+        font-size: 34px;
+        pointer-events: none;
+      }
+      .transfer-button {
+        position: absolute;
+        z-index: 3;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        translate: -50% -50%;
+        border: 4px solid #07111f;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.55);
+        cursor: pointer;
+      }
+      #item-a {
+        position-anchor: --cobe-item-a;
+        left: anchor(center);
+        top: anchor(center);
+        opacity: var(--cobe-visible-item-a, 0);
+      }
+      #item-b {
+        position-anchor: --cobe-item-b;
+        left: anchor(center);
+        top: anchor(center);
+        opacity: var(--cobe-visible-item-b, 0);
+      }
+      #traveler {
+        position-anchor: --cobe-arc-boat-leg;
+        left: anchor(center);
+        top: anchor(center);
+        opacity: var(--cobe-visible-arc-boat-leg, 0);
+      }
+      #transfer-flight-boat {
+        position-anchor: --cobe-transfer-flight-boat;
+        left: anchor(center);
+        top: anchor(center);
+        opacity: var(--cobe-visible-transfer-flight-boat, 0);
+      }
+      #transfer-boat-road {
+        position-anchor: --cobe-transfer-boat-road;
+        left: anchor(center);
+        top: anchor(center);
+        opacity: var(--cobe-visible-transfer-boat-road, 0);
+      }
+      @supports not (anchor-name: --x) {
+        #item-a {
+          left: var(--cobe-item-a-x);
+          top: var(--cobe-item-a-y);
+        }
+        #item-b {
+          left: var(--cobe-item-b-x);
+          top: var(--cobe-item-b-y);
+        }
+        #traveler {
+          left: var(--cobe-arc-boat-leg-x);
+          top: var(--cobe-arc-boat-leg-y);
+        }
+        #transfer-flight-boat {
+          left: var(--cobe-transfer-flight-boat-x);
+          top: var(--cobe-transfer-flight-boat-y);
+        }
+        #transfer-boat-road {
+          left: var(--cobe-transfer-boat-road-x);
+          top: var(--cobe-transfer-boat-road-y);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main id="globe-host" aria-label="COBE multi-leg journey replay">
+      <canvas id="globe"></canvas>
+      <span id="item-a" class="overlay" aria-label="Journey item A">🗼</span>
+      <span id="item-b" class="overlay" aria-label="Journey item B">🐨</span>
+      <span id="traveler" class="overlay" aria-label="Active boat leg">⛵</span>
+      <button
+        id="transfer-flight-boat"
+        class="transfer-button"
+        type="button"
+        aria-label="Open first transfer"
+      ></button>
+      <button
+        id="transfer-boat-road"
+        class="transfer-button"
+        type="button"
+        aria-label="Open second transfer"
+      ></button>
+    </main>
+    <script type="module">
+      import createGlobe from '../../dist/index.esm.js'
+
+      const arcs = [
+        {
+          id: 'flight-leg',
+          from: [35.68, 139.65],
+          to: [22.32, 114.17],
+          color: [0.35, 0.65, 1],
+          height: 0.32,
+          width: 0.65,
+        },
+        {
+          id: 'boat-leg',
+          from: [22.32, 114.17],
+          to: [-6.21, 106.85],
+          color: [0.1, 0.85, 0.75],
+          height: 0.08,
+          width: 0.75,
+          progress: 0.62,
+          anchorProgress: 0.62,
+        },
+        {
+          id: 'road-leg',
+          from: [-6.21, 106.85],
+          to: [-33.87, 151.21],
+          color: [1, 0.58, 0.2],
+          height: 0.015,
+          width: 0.55,
+        },
+      ]
+
+      const transferPoints = [
+        { id: 'transfer-flight-boat', location: [22.32, 114.17] },
+        { id: 'transfer-boat-road', location: [-6.21, 106.85] },
+      ]
+
+      const canvas = document.querySelector('#globe')
+      const width = canvas.clientWidth
+      const globe = createGlobe(canvas, {
+        devicePixelRatio: Math.min(devicePixelRatio, 2),
+        width,
+        height: width,
+        phi: 2.15,
+        theta: 0.05,
+        dark: 1,
+        diffuse: 1.6,
+        scale: 1,
+        mapSamples: 16000,
+        mapBrightness: 4,
+        baseColor: [0.12, 0.2, 0.32],
+        markerColor: [1, 0.83, 0.3],
+        glowColor: [0.18, 0.35, 0.58],
+        markerElevation: 0.015,
+        markers: [
+          { id: 'item-a', location: [35.68, 139.65], size: 0.035 },
+          { id: 'item-b', location: [-33.87, 151.21], size: 0.035 },
+          ...transferPoints.map(({ id, location }) => ({
+            id,
+            location,
+            size: 0.018,
+            color: [1, 1, 1],
+          })),
+        ],
+        arcs,
+        arcColor: [1, 1, 1],
+        arcWidth: 0.5,
+        arcHeight: 0.2,
+      })
+
+      window.cobeSmoke = { arcs, transferPoints, globe, ready: true }
+    </script>
+  </body>
+</html>

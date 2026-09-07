@@ -24,10 +24,16 @@ const markersArcsTabs = [
     code: `arcs: [
   // Basic arc between two points
   { from: [37.78, -122.44], to: [51.51, -0.13] },
-  // With custom color
-  { from: [40.71, -74.01], to: [48.86, 2.35], color: [0, 1, 0] },
-  // With id for CSS anchoring (anchors at arc midpoint)
-  { from: [35.68, 139.65], to: [-33.87, 151.21], id: 'tokyo-sydney' }
+  // Per-arc style overrides
+  {
+    from: [40.71, -74.01], to: [48.86, 2.35],
+    color: [0, 1, 0], height: 0.1, width: 0.7
+  },
+  // Partially revealed, with its DOM anchor at the leading edge
+  {
+    from: [35.68, 139.65], to: [-33.87, 151.21],
+    id: 'tokyo-sydney', progress: 0.6, anchorProgress: 0.6
+  }
 ]
 
 // Global arc settings
@@ -35,7 +41,30 @@ arcColor: [0.3, 0.5, 1],  // Default color
 arcWidth: 0.5,            // Line thickness
 arcHeight: 0.3            // Curve height above surface`,
     description:
-      "Draw curved lines between locations. Arc anchors position at the curve's peak for attaching labels or tooltips.",
+      'Draw independent curved legs between locations. Per-arc style values override the global defaults; progress reveals the curve and anchorProgress positions attached DOM content.',
+  },
+  {
+    key: 'split-routes',
+    name: 'Split Routes',
+    code: `const transferPoints = [
+  { id: 'flight-boat', location: [22.32, 114.17] },
+  { id: 'boat-road', location: [-6.21, 106.85] }
+]
+
+createGlobe(canvas, {
+  arcs: [flightLeg, boatLeg, roadLeg],
+  markers: transferPoints.map(({ id, location }) => ({
+    id: \`transfer-\${id}\`,
+    location,
+    size: 0.02
+  }))
+})
+
+// Render your own DOM button for each transfer point:
+// position-anchor: --cobe-transfer-flight-boat
+// opacity: var(--cobe-visible-transfer-flight-boat, 0)`,
+    description:
+      'Mark each shared leg endpoint explicitly to show A — ● — ● — B. COBE projects the marker anchors; your application owns transfer labels, actions, and route semantics.',
   },
 ]
 
